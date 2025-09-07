@@ -11,7 +11,7 @@ import asyncio
 import logging
 from database_manager import db_manager
 from dotenv import load_dotenv
-
+from utils.checks import is_bot_owner, is_admin, is_mod
 # Load environment variables
 load_dotenv()
 
@@ -23,17 +23,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def get_prefix(client, message):
-    """Get prefix for a guild"""
     if not message.guild:
         return config.BOT_PREFIX
     
-    # Try to load from prefixes.json for backwards compatibility
     try:
         with open('prefixes.json', 'r') as f:
             prefixes = json.load(f)
-            return prefixes.get(str(message.guild.id), config.BOT_PREFIX)
+            # Nếu guild có prefix thì trả về list [prefix.lower, prefix.upper]
+            prefix = prefixes.get(str(message.guild.id), ['z', 'Z'])
+            return commands.when_mentioned_or(*prefix)(client, message)
     except:
-        return config.BOT_PREFIX
+        # Nếu lỗi (file chưa có / bị hỏng) thì fallback sang prefix mặc định
+        return commands.when_mentioned_or(config.BOT_PREFIX)(client, message)
 
 # Setup bot with optimized intents
 intents = discord.Intents.default()
@@ -53,7 +54,10 @@ client = commands.Bot(
 )
 
 # Store bot token
-BOT_TOKEN = os.getenv('BOT_TOKEN')
+BOT_TOKEN = config.BOT_TOKEN
+BOT_OWNER_IDS = config.BOT_OWNER_IDS
+
+
 
 # Global rate limiter for commands
 command_cooldowns = {}
@@ -100,6 +104,7 @@ async def load_extensions():
         ('Commands.Mod.welcome', 'Welcome'),
         ('Commands.Mod.toggle', 'Toggle'),
         ('Commands.Mod.link_invite', 'InviteLink'),
+        ('Commands.Mod.giveaway_option', 'GiveAway_Option'),
         
         # Commands.More
         ('Commands.More.instagram', 'Instagram'),
@@ -141,8 +146,8 @@ async def load_extensions():
         # ('Events.Event_30_4.checkin', 'Checkin'),
         ('Events.level', 'Level'),
         ('Events.quest', 'Quest'),
-        ('Events.ve', 'Ve'),
-        ('Events.velenh', 'Velenh'),
+        # ('Events.ve', 'Ve'),
+        # ('Events.velenh', 'Velenh'),
         # ('Events.Valentine_2025.unbox', 'Valentine2025'),
     ]
     
@@ -196,7 +201,7 @@ async def on_ready():
     # Set bot presence
     await client.change_presence(
         activity=discord.Streaming(
-            name="Multi-Guild Support | zhelp",
+            name="𝗛𝗮̣𝘁 𝗚𝗶𝗼̂́𝗻𝗴 𝗧𝗮̂𝗺 𝗧𝗵𝗮̂̀𝗻 | zhelp",
             url="https://www.twitch.tv/thanhvidev"
         )
     )
@@ -205,7 +210,10 @@ async def on_ready():
     if not os.path.exists('prefixes.json'):
         default_prefixes = {}
         for guild in client.guilds:
-            default_prefixes[str(guild.id)] = config.BOT_PREFIX
+            default_prefixes[str(guild.id)] = [
+                config.BOT_PREFIX.lower(),
+                config.BOT_PREFIX.upper()
+            ]
         with open('prefixes.json', 'w') as f:
             json.dump(default_prefixes, f, indent=4)
     
@@ -214,10 +222,36 @@ async def on_ready():
     
     # Sync slash commands
     try:
-        synced = await client.tree.sync()
+        # Lấy tất cả commands hiện tại
+        current_commands = await client.tree.fetch_commands()
+        
+        # Tìm Entry Point command nếu có
+        entry_point = None
+        for cmd in current_commands:
+            if hasattr(cmd, 'is_entry_point') and cmd.is_entry_point:
+                entry_point = cmd
+                break
+        
+        # Sync commands
+        if entry_point:
+            # Nếu có Entry Point, sync riêng lẻ
+            synced = await client.tree.sync()
+        else:
+            # Sync bình thường
+            synced = await client.tree.sync()
+            
         logger.info(f"🔄 Synced {len(synced)} slash commands")
-    except Exception as e:
-        logger.error(f"❌ Failed to sync commands: {e}")
+    except discord.HTTPException as e:
+        if "Entry Point command" in str(e):
+            logger.warning("⚠️ Entry Point command conflict, commands may not sync properly")
+            # Có thể thử sync từng guild riêng lẻ
+            for guild in client.guilds:
+                try:
+                    await client.tree.sync(guild=guild)
+                except:
+                    pass
+        else:
+            logger.error(f"❌ Failed to sync commands: {e}")
 
 @client.event
 async def on_guild_join(guild):
@@ -235,7 +269,10 @@ async def on_guild_join(guild):
     try:
         with open('prefixes.json', 'r') as f:
             prefixes = json.load(f)
-        prefixes[str(guild.id)] = config.BOT_PREFIX
+        prefixes[str(guild.id)] = [
+            config.BOT_PREFIX.lower(),
+            config.BOT_PREFIX.upper()
+        ]
         with open('prefixes.json', 'w') as f:
             json.dump(prefixes, f, indent=4)
     except Exception as e:
@@ -294,6 +331,7 @@ async def ping_command(ctx):
     await ctx.send(embed=embed)
 
 @client.command(name='stats', description='Xem thống kê bot')
+@is_bot_owner()
 async def stats_command(ctx):
     """Show bot statistics"""
     embed = discord.Embed(
@@ -309,7 +347,7 @@ async def stats_command(ctx):
     await ctx.send(embed=embed)
 
 @client.command(name='reload', description='Reload a cog')
-@commands.is_owner()
+@is_bot_owner()
 async def reload_command(ctx, extension: str = None):
     """Reload a specific extension or all extensions"""
     if extension:

@@ -76,7 +76,7 @@ def migrate_database():
             
             if not servers:
                 logger.warning("No server information found. Creating default guild.")
-                servers = [{'server_id': 1090136467541590066}]  # Default guild ID
+                servers = [{'server_id': 832579380634451969}]  # Default guild ID
         
         logger.info(f"Found {len(servers)} servers to migrate")
         
@@ -208,6 +208,7 @@ def migrate_database():
                                 logger.info(f"Migrated {migrated_giveaways} giveaways for server {server_id}")
                 except Exception as e:
                     logger.warning(f"Could not migrate giveaways: {e}")
+
         
         logger.info("✅ Data migration completed successfully!")
         

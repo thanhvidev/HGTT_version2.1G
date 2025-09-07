@@ -4,6 +4,8 @@ import discord
 from discord.ext import commands  
 import json  
 import os  
+from utils.checks import is_bot_owner, is_admin, is_mod
+
 
 def is_guild_owner_or_bot_owner():  
     async def predicate(ctx):  
@@ -50,7 +52,7 @@ class Toggle(commands.Cog):
 
     @commands.command(description="Enable a command", help="Enable a command")
     @commands.cooldown(1, 2, commands.BucketType.user)  
-    @is_guild_owner_or_bot_owner()  
+    @is_bot_owner()
     async def enable(self, ctx, command: str):  
         command = command.lower()  
         
@@ -90,7 +92,7 @@ class Toggle(commands.Cog):
 
     @commands.command(description="Disable a command", help="Disable a command") 
     @commands.cooldown(1, 2, commands.BucketType.user)   
-    @is_guild_owner_or_bot_owner()  
+    @is_bot_owner()
     async def disable(self, ctx, command: str):  
         command = command.lower()  
         

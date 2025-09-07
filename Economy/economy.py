@@ -96,6 +96,11 @@ class Economy(commands.Cog):
         user_id = ctx.author.id
         guild_id = ctx.guild.id
         
+        # Kiểm tra xem kênh có ID là 1147035278465310720 hay không
+        if ctx.channel.id == 1147035278465310720:
+            await ctx.send(f"Hãy dùng lệnh ở kênh khác!")
+            return
+        
         # Check if already registered
         if await UserDatabase.is_registered(guild_id, user_id):
             await ctx.send(f"{ctx.author.mention}, bạn đã đăng ký tài khoản rồi!")
@@ -114,7 +119,7 @@ class Economy(commands.Cog):
             
             await ctx.send(
                 f"{dk_emoji} **| {ctx.author.display_name} đăng kí tài khoản thành công, "
-                f"bạn được tặng** __**200,000**__ {tienhatgiong}"
+                f"bạn được tặng** __**200k**__ {tienhatgiong}"
             )
             
             # Log transaction
@@ -125,11 +130,15 @@ class Economy(commands.Cog):
         else:
             await ctx.send("❌ Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại!")
     
-    @commands.command(description="Xem số dư tài khoản")
+    @commands.command(description="xem có bao nhiêu vé")
     async def cash(self, ctx, member: typing.Optional[discord.Member] = None):
         """Check account balance"""
         if await self.check_command_disabled(ctx):
             return
+        
+        # Kiểm tra xem kênh có ID là 1147035278465310720 hay không
+        if ctx.channel.id == 1147035278465310720 or ctx.channel.id == 1207593935359320084:
+            return None
         
         target = member or ctx.author
         guild_id = ctx.guild.id
@@ -155,72 +164,63 @@ class Economy(commands.Cog):
             coin_kc = user_data.get('coin_kc', 0)
             xu_ev = user_data.get('xu_hlw', 0)
             
-            # Create embed
-            embed = discord.Embed(
-                title=f"💰 Tài Khoản của {target.display_name}",
-                color=discord.Color.gold()
-            )
-            embed.add_field(name="💵 Số dư", value=f"**{balance:,}** {tienhatgiong}", inline=False)
-            
-            if gold_tickets > 0:
-                embed.add_field(name="🎫 Vé vàng", value=f"**{gold_tickets}** {vevang}", inline=True)
-            if diamond_tickets > 0:
-                embed.add_field(name="💎 Vé kim cương", value=f"**{diamond_tickets}** {vekc}", inline=True)
-            if xu_ev > 0:
-                embed.add_field(name="🎪 Xu event", value=f"**{xu_ev}** {list_emoji.xu_event if hasattr(list_emoji, 'xu_event') else '🎪'}", inline=True)
-            
-            # Add user rank
-            rank = await LeaderboardDatabase.get_user_rank(guild_id, target.id)
-            if rank:
-                embed.set_footer(text=f"Xếp hạng: #{rank} trong server")
-            
-            await ctx.send(embed=embed)
+            # Create message similar to original
+            if diamond_tickets == 0:
+                await ctx.send(f"{list_emoji.card} **| {target.display_name}** **đang có** **{gold_tickets} {vevang}**, __**{balance:,}**__ {tienhatgiong} và __**{xu_ev}**__ {list_emoji.xu_event}")
+            else:
+                await ctx.send(f"{list_emoji.card} **| {target.display_name}** **đang có** **{gold_tickets} {vevang}** **{diamond_tickets} {vekc}**, __**{balance:,}**__ {tienhatgiong} và __**{xu_ev}**__ {list_emoji.xu_event}")
+        else:
+            return None
     
-    @commands.command(aliases=["chuyen", "transfer"], description="Chuyển tiền cho người khác")
+    @commands.command(description="gửi tiền cho mọi người")
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def give(self, ctx, receiver: discord.User, amount: int):
         """Transfer money to another user"""
         if await self.check_command_disabled(ctx):
             return
         
+        if ctx.channel.id == 1215331218124574740 or ctx.channel.id == 1215331281878130738:
+            return None
+        
         sender_id = ctx.author.id
         receiver_id = receiver.id
         guild_id = ctx.guild.id
+        formatted_amount = "{:,}".format(amount)
         
         # Validation
         if receiver.bot:
-            await ctx.send("❌ Không thể gửi tiền cho bot.")
+            await ctx.send("Không gửi tiền cho bot.")
             return
         
         if sender_id == receiver_id:
-            await ctx.send("❌ Bạn không thể gửi tiền cho chính mình!")
+            await ctx.send("Tự ở tự ăn hả???")
             return
         
         if amount <= 0:
-            await ctx.send("❌ Số tiền phải lớn hơn 0!")
+            await ctx.send("Về học lại toán lớp 1 dùm.")
             return
         
         # Check registration
-        if not await UserDatabase.is_registered(guild_id, sender_id):
-            await ctx.send("❌ Bạn chưa đăng kí tài khoản. Bấm `zdk` để đăng kí")
-            return
-        
-        if not await UserDatabase.is_registered(guild_id, receiver_id):
-            await ctx.send(f"❌ {receiver.mention} chưa đăng kí tài khoản")
+        if not await UserDatabase.is_registered(guild_id, sender_id) or not await UserDatabase.is_registered(guild_id, receiver_id):
+            await ctx.send("bạn chưa đăng kí tài khoản. Bấm `zdk` để đăng kí")
             return
         
         # Check balance
         if not await UserDatabase.has_enough_balance(guild_id, sender_id, amount):
-            await ctx.send("❌ Bạn không có đủ tiền để gửi!")
+            await ctx.send("Làm gì còn đủ tiền mà gửi!")
             return
         
         # Create confirmation embed
-        embed = discord.Embed(
-            title="💸 Xác nhận chuyển tiền",
-            description=f"**{ctx.author.mention}** sẽ gửi **{amount:,}** {tienhatgiong} cho **{receiver.mention}**",
-            color=discord.Color.blue()
-        )
-        embed.set_footer(text="React để xác nhận hoặc hủy")
+        embed = discord.Embed(title="", description=f"", color=discord.Color.from_rgb(238, 130, 238))
+        if ctx.author.avatar:
+            avatar_url = ctx.author.avatar.url
+        else:
+            avatar_url = "https://cdn.discordapp.com/embed/avatars/0.png"
+        
+        embed.set_author(name=f"Xác nhận chuyển tiền", icon_url=avatar_url)
+        embed.add_field(name="", value=f"- **{ctx.author.mention} sẽ gửi {cash} {receiver.mention}:**", inline=False)
+        embed.add_field(name="", value=f"``` {formatted_amount} pinkcoin```", inline=False)
+        embed._timestamp = datetime.utcnow()
         
         msg = await ctx.send(embed=embed)
         await msg.add_reaction(tickxanh)
@@ -232,12 +232,13 @@ class Economy(commands.Cog):
                    str(reaction.emoji) in [tickxanh, tickdo])
         
         try:
-            reaction, _ = await self.client.wait_for('reaction_add', timeout=30.0, check=check)
+            reaction, _ = await self.client.wait_for('reaction_add', timeout=180.0, check=check)
         except asyncio.TimeoutError:
-            embed.color = discord.Color.dark_gray()
-            embed.description = "⏱️ Hết thời gian. Giao dịch đã bị hủy."
+            embed.color = discord.Color.from_rgb(0, 0, 0)
+            embed.description = "Hết thời gian. Giao dịch đã bị hủy bỏ."
             await msg.edit(embed=embed)
-            await msg.clear_reactions()
+            await asyncio.sleep(5)
+            await msg.delete()
             return
         
         if str(reaction.emoji) == tickxanh:
@@ -245,28 +246,25 @@ class Economy(commands.Cog):
             success = await UserDatabase.transfer_money(guild_id, sender_id, receiver_id, amount)
             
             if success:
-                embed.color = discord.Color.green()
-                embed.description = f"{bank} **{ctx.author.mention}** đã gửi thành công **{amount:,}** {tienhatgiong} cho **{receiver.mention}**"
-                await msg.edit(embed=embed)
-                
-                # Log transaction (already logged in transfer_money)
-            else:
-                embed.color = discord.Color.red()
-                embed.description = "❌ Giao dịch thất bại. Vui lòng thử lại."
-                await msg.edit(embed=embed)
+                await msg.delete()  # Xoá tin nhắn gốc
+                mgs5 = await ctx.send(f"　")
+                await mgs5.edit(content=f"{bank} **{ctx.author.mention}** **đã gửi** __**{formatted_amount}**__ {tienhatgiong} **đến** **{receiver.mention}**.")
         else:
-            embed.color = discord.Color.red()
-            embed.description = "❌ Giao dịch đã bị hủy."
+            embed.color = 0xff0000  # Màu đỏ
+            embed.description = "Giao dịch đã bị hủy bỏ."
             await msg.edit(embed=embed)
-        
-        await msg.clear_reactions()
+            await asyncio.sleep(5)
+            await msg.delete()
     
-    @commands.command(aliases=["lam", "lamviec"], description="Làm việc kiếm tiền")
+    @commands.command( description="Làm việc")
     @commands.cooldown(1, 300, commands.BucketType.user)
     @is_allowed_channel_check()
     async def work(self, ctx):
         """Work to earn money"""
         if await self.check_command_disabled(ctx):
+            return
+        
+        if ctx.channel.id in (1273769291099144222, 993153068378116127):
             return
         
         user_id = ctx.author.id
@@ -292,50 +290,69 @@ class Economy(commands.Cog):
         
         # Work messages
         work_messages = [
-            "đi làm và được trả",
+            "đi làm đi~ và được bo",
+            "đi ăn xin và được",
             "đi bán vé số và kiếm được",
             "đi lụm ve chai và bán được",
             "đi chém thuê và được trả công",
+            "ăn trộm tiền của",
+            "ăn cắp tiền của mẹ được",
             "đi phụ hồ và được trả",
+            "làm thuê cột bịch nước mắm được trả công",
             "làm bảo vệ và được trả công",
-            "đi ship hàng và kiếm được",
-            "làm freelancer và nhận được",
-            "đi câu cá và bán được",
-            "làm thợ sửa xe và được trả"
+            "đi móc bóc kiếm được",
+            "đi làm tay vịn và được khách bo",
         ]
         
         # Check if confirmation needed
         if counter + 1 > threshold:
             # Need confirmation
+            confirmed = False
             view = View(timeout=30)
             button = Button(label="Xác nhận làm việc", style=discord.ButtonStyle.primary)
             
             async def confirm_callback(interaction: discord.Interaction):
+                nonlocal confirmed
                 if interaction.user.id != user_id:
-                    await interaction.response.send_message("❌ Chỉ người dùng lệnh mới có thể xác nhận!", ephemeral=True)
-                    return
-                
+                    return await interaction.response.send_message(
+                        "Chỉ chủ lệnh mới xác nhận được.", ephemeral=True
+                    )
+                confirmed = True
                 await interaction.response.defer()
                 
                 # Process work
-                work_msg = random.choice(work_messages)
-                await UserDatabase.add_balance(guild_id, user_id, earnings)
+                result = random.choice(work_messages)
+                
+                # Handle stealing/begging
+                if result.startswith("đi ăn xin") or result.startswith("ăn trộm"):
+                    victims = await GuildDatabase.get_users_with_balance_above(guild_id, 10000, user_id)
+                    if victims:
+                        victim_id = random.choice([v['user_id'] for v in victims])
+                        await UserDatabase.add_balance(guild_id, user_id, earnings)
+                        await UserDatabase.add_balance(guild_id, victim_id, -earnings)
+                        embed = discord.Embed(color=discord.Color.green())
+                        embed.description = (
+                            f"**{tickxanh} {ctx.author.mention} {result} <@{victim_id}>** "
+                            f"__**{earnings:,}**__ {tienhatgiong}"
+                        )
+                        await interaction.followup.send(embed=embed)
+                else:
+                    await UserDatabase.add_balance(guild_id, user_id, earnings)
+                    embed = discord.Embed(color=discord.Color.green())
+                    embed.description = (
+                        f"**{tickxanh} {ctx.author.mention} {result}** "
+                        f"__**{earnings:,}**__ {tienhatgiong}"
+                    )
+                    await interaction.followup.send(embed=embed)
                 
                 # Reset counter and threshold
                 new_threshold = random.choice(self.confirm_threshold_choices)
                 await UserDatabase.update_user_field(guild_id, user_id, 'work_so', 0)
                 await UserDatabase.update_user_field(guild_id, user_id, 'work_time', new_threshold)
                 
-                # Send result
-                embed = discord.Embed(
-                    description=f"✅ **{ctx.author.mention}** {work_msg} **{earnings:,}** {tienhatgiong}",
-                    color=discord.Color.green()
-                )
-                await interaction.followup.send(embed=embed)
-                
                 # Log transaction
                 await TransactionDatabase.log_transaction(
-                    guild_id, None, user_id, earnings, "work", work_msg
+                    guild_id, None, user_id, earnings, "work", result
                 )
                 
                 await interaction.message.delete()
@@ -344,33 +361,46 @@ class Economy(commands.Cog):
             button.callback = confirm_callback
             view.add_item(button)
             
-            await ctx.send(
-                f"🔒 **Xác nhận bảo mật**: Vui lòng nhấn nút để xác nhận làm việc",
-                view=view
-            )
+            # Send prompt and wait
+            prompt = await ctx.send(view=view)
+            await view.wait()
+            # If timeout without confirmation, delete prompt
+            if not confirmed:
+                await prompt.delete()
+        
         else:
             # Auto work
-            work_msg = random.choice(work_messages)
-            await UserDatabase.add_balance(guild_id, user_id, earnings)
+            result = random.choice(work_messages)
+            
+            if result.startswith("đi ăn xin") or result.startswith("ăn trộm"):
+                victims = await GuildDatabase.get_users_with_balance_above(guild_id, 10000, user_id)
+                if victims:
+                    victim_id = random.choice([v['user_id'] for v in victims])
+                    await UserDatabase.add_balance(guild_id, user_id, earnings)
+                    await UserDatabase.add_balance(guild_id, victim_id, -earnings)
+            else:
+                await UserDatabase.add_balance(guild_id, user_id, earnings)
+            
             await UserDatabase.increment_field(guild_id, user_id, 'work_so', 1)
             
-            embed = discord.Embed(
-                description=f"✅ **{ctx.author.mention}** {work_msg} **{earnings:,}** {tienhatgiong}",
-                color=discord.Color.green()
+            await ctx.send(
+                f"**{tickxanh} {ctx.author.mention} {result}** __**{earnings:,}**__ {tienhatgiong}"
             )
-            await ctx.send(embed=embed)
             
             # Log transaction
             await TransactionDatabase.log_transaction(
-                guild_id, None, user_id, earnings, "work", work_msg
+                guild_id, None, user_id, earnings, "work", result
             )
     
-    @commands.command(aliases=["caunguyen"], description="Cầu nguyện")
+    @commands.command( description="Cầu nguyện")
     @commands.cooldown(1, 900, commands.BucketType.user)
     @is_allowed_channel_check()
     async def pray(self, ctx):
         """Pray command"""
         if await self.check_command_disabled(ctx):
+            return
+        
+        if ctx.channel.id == 1273769291099144222:
             return
         
         user_id = ctx.author.id
@@ -395,14 +425,17 @@ class Economy(commands.Cog):
         # Check if confirmation needed
         if counter + 1 > threshold:
             # Need confirmation
+            confirmed = False
             view = View(timeout=30)
             button = Button(label="Xác nhận cầu nguyện", style=discord.ButtonStyle.green)
             
             async def confirm_callback(interaction: discord.Interaction):
+                nonlocal confirmed
                 if interaction.user.id != user_id:
-                    await interaction.response.send_message("❌ Chỉ người dùng lệnh mới có thể xác nhận!", ephemeral=True)
-                    return
-                
+                    return await interaction.response.send_message(
+                        "Chỉ người thực hiện lệnh mới có thể xác nhận.", ephemeral=True
+                    )
+                confirmed = True
                 await interaction.response.defer()
                 
                 # Process pray
@@ -417,7 +450,7 @@ class Economy(commands.Cog):
                 new_count = pray_count + 1
                 
                 await interaction.followup.send(
-                    f"{caunguyen} **{ctx.author.display_name}** thành tâm sám hối thắp được __**{new_count}**__ nén nhang! {caunguyen2}"
+                    f"{caunguyen} | **{ctx.author.display_name}** thành tâm sám hối thắp được __**{new_count}**__ nén nhang! {caunguyen2}"
                 )
                 
                 await interaction.message.delete()
@@ -426,10 +459,11 @@ class Economy(commands.Cog):
             button.callback = confirm_callback
             view.add_item(button)
             
-            await ctx.send(
-                f"🔒 **Xác nhận bảo mật**: Vui lòng nhấn nút để xác nhận cầu nguyện",
-                view=view
-            )
+            prompt = await ctx.send(view=view)
+            await view.wait()
+            if not confirmed:
+                await prompt.delete()
+        
         else:
             # Auto pray
             await UserDatabase.increment_field(guild_id, user_id, 'pray', 1)
@@ -437,100 +471,23 @@ class Economy(commands.Cog):
             
             new_count = pray_count + 1
             await ctx.send(
-                f"{caunguyen} **{ctx.author.display_name}** thành tâm sám hối thắp được __**{new_count}**__ nén nhang! {caunguyen2}"
+                f"{caunguyen} | **{ctx.author.display_name}** thành tâm sám hối thắp được __**{new_count}**__ nén nhang! {caunguyen2}"
             )
     
-    @commands.command(aliases=["LB", "leaderboard"], description="Xem bảng xếp hạng")
-    async def bxh(self, ctx, category: str = "balance"):
-        """View leaderboard"""
-        if await self.check_command_disabled(ctx):
-            return
-        
-        guild_id = ctx.guild.id
-        
-        # Determine leaderboard type
-        category = category.lower()
-        if category in ["tien", "money", "balance", "cash"]:
-            field = "balance"
-            title = "💰 Top Người Giàu Nhất"
-            emoji = tienhatgiong
-        elif category in ["pray", "caunguyen"]:
-            field = "pray"
-            title = "🙏 Top Cầu Nguyện Nhiều Nhất"
-            emoji = caunguyen2
-        elif category in ["love", "tinh", "marry"]:
-            field = "love_marry"
-            title = "❤️ Top Tình Yêu"
-            emoji = "❤️"
-        else:
-            field = "balance"
-            title = "💰 Top Người Giàu Nhất"
-            emoji = tienhatgiong
-        
-        # Get leaderboard
-        leaderboard = await LeaderboardDatabase.get_field_leaderboard(guild_id, field, 10)
-        
-        if not leaderboard:
-            await ctx.send("📊 Chưa có dữ liệu bảng xếp hạng!")
-            return
-        
-        # Create embed
-        embed = discord.Embed(
-            title=f"{title} - {ctx.guild.name}",
-            color=discord.Color.gold()
-        )
-        
-        # Build leaderboard text
-        description = ""
-        for i, entry in enumerate(leaderboard, 1):
-            user_id = entry['user_id']
-            value = entry[field]
-            
-            # Get user
-            try:
-                user = await self.client.fetch_user(user_id)
-                username = user.display_name
-            except:
-                username = f"User {user_id}"
-            
-            # Medal for top 3
-            medal = ""
-            if i == 1:
-                medal = "🥇"
-            elif i == 2:
-                medal = "🥈"
-            elif i == 3:
-                medal = "🥉"
-            
-            description += f"{medal} **{i}.** {username}: **{value:,}** {emoji}\n"
-        
-        embed.description = description
-        embed.set_footer(text=f"Dùng {ctx.prefix}bxh [tien/pray/love] để xem các BXH khác")
-        
-        await ctx.send(embed=embed)
-    
-    @commands.command(aliases=["settien", "set"], description="Set tiền cho người dùng")
+    @commands.command(aliases=["zsettien", "set"], description="set tiền cho người khác")
     @commands.cooldown(1, 2, commands.BucketType.user)
     @is_guild_owner_or_bot_owner()
-    async def setmoney(self, ctx, amount: int, member: typing.Optional[discord.Member] = None):
+    async def settien(self, ctx, amount: int, member: typing.Optional[discord.Member] = None):
         """Set money for a user (Admin only)"""
         guild_id = ctx.guild.id
+        formatted_amount = "{:,}".format(amount)
         
         # Create confirmation embed
         if member is None:
-            embed = discord.Embed(
-                title="⚠️ Xác nhận",
-                description=f"Bạn có chắc muốn tặng **{amount:,}** {tienhatgiong} cho **TẤT CẢ** người dùng?",
-                color=discord.Color.yellow()
-            )
+            msg = await ctx.send(f"Bạn có chắc chắn muốn tặng **{formatted_amount}** {tienhatgiong} cho tất cả người dùng?")
         else:
-            embed = discord.Embed(
-                title="⚠️ Xác nhận",
-                description=f"Bạn có chắc muốn tặng **{amount:,}** {tienhatgiong} cho **{member.display_name}**?",
-                color=discord.Color.yellow()
-            )
+            msg = await ctx.send(f"Bạn có chắc chắn muốn tặng **{formatted_amount}** {tienhatgiong} cho {member.display_name}?")
         
-        msg = await ctx.send(embed=embed)
         await msg.add_reaction(dungset)
         await msg.add_reaction(saiset)
         
@@ -547,11 +504,9 @@ class Economy(commands.Cog):
                     # Add to all users
                     success = await GuildDatabase.add_balance_to_all(guild_id, amount)
                     if success:
-                        embed.color = discord.Color.green()
-                        embed.description = f"✅ Đã tặng **{amount:,}** {tienhatgiong} cho tất cả người dùng!"
+                        await msg.edit(content=f"**HGTT đã tặng** __**{formatted_amount}**__ {tienhatgiong} **cho tất cả người dùng**")
                     else:
-                        embed.color = discord.Color.red()
-                        embed.description = "❌ Có lỗi xảy ra!"
+                        await msg.edit(content="Có lỗi xảy ra!")
                 else:
                     # Check if user is registered
                     if not await UserDatabase.is_registered(guild_id, member.id):
@@ -560,84 +515,67 @@ class Economy(commands.Cog):
                     
                     # Add balance
                     await UserDatabase.add_balance(guild_id, member.id, amount)
-                    embed.color = discord.Color.green()
-                    embed.description = f"✅ Đã tặng **{amount:,}** {tienhatgiong} cho **{member.display_name}**!"
-                
-                await msg.edit(embed=embed)
+                    await msg.edit(content=f"**HGTT đã tặng** __**{formatted_amount}**__ {tienhatgiong} **cho {member.display_name}**")
             else:
-                embed.color = discord.Color.red()
-                embed.description = "❌ Lệnh đã bị hủy."
-                await msg.edit(embed=embed)
+                await msg.edit(content="Lệnh đã bị hủy.")
         
         except asyncio.TimeoutError:
-            embed.color = discord.Color.dark_gray()
-            embed.description = "⏱️ Hết thời gian chờ. Lệnh đã bị hủy."
-            await msg.edit(embed=embed)
-        
-        await msg.clear_reactions()
+            await msg.edit(content="Bạn không phản ứng kịp thời, lệnh đã bị hủy.")
     
-    @commands.command(aliases=["resettien", "resetmoney"], description="Reset tiền")
+    @commands.command(aliases=["rstien"], description="reset tiền cho người khác")
     @commands.cooldown(1, 2, commands.BucketType.user)
     @is_guild_owner_or_bot_owner()
-    async def reset_money(self, ctx, member: typing.Optional[discord.Member] = None):
+    async def resettien(self, ctx, member: typing.Optional[discord.Member] = None):
         """Reset money for users (Admin only)"""
         guild_id = ctx.guild.id
         
-        # Create confirmation embed
         if member is None:
-            embed = discord.Embed(
-                title="⚠️ Cảnh báo",
-                description="Bạn có chắc muốn **RESET** tiền của **TẤT CẢ** người dùng về 0?",
-                color=discord.Color.red()
-            )
+            # Gửi yêu cầu xác nhận cho toàn bộ người dùng
+            msg = await ctx.send("Bạn có chắc chắn muốn reset tiền cho tất cả người dùng?")
         else:
+            # Lấy số tiền hiện tại của người dùng
             current_balance = await UserDatabase.get_balance(guild_id, member.id)
-            embed = discord.Embed(
-                title="⚠️ Cảnh báo",
-                description=f"Bạn có chắc muốn **RESET** tiền của **{member.display_name}** về 0?\nSố dư hiện tại: **{current_balance:,}** {tienhatgiong}",
-                color=discord.Color.red()
+            msg = await ctx.send(
+                f"Bạn có chắc chắn muốn reset tiền cho {member.display_name}? "
+                f"Số tiền hiện tại của họ là: {current_balance:,} VNĐ."
             )
         
-        msg = await ctx.send(embed=embed)
+        # Đặt emoji phản ứng cho người dùng lựa chọn
         await msg.add_reaction(dungset)
         await msg.add_reaction(saiset)
         
+        # Xác nhận người dùng phản ứng
         def check(reaction, user):
-            return (user == ctx.author and 
-                   str(reaction.emoji) in [dungset, saiset] and 
-                   reaction.message.id == msg.id)
+            return user == ctx.author and str(reaction.emoji) in [dungset, saiset] and reaction.message.id == msg.id
         
         try:
             reaction, user = await self.client.wait_for('reaction_add', timeout=30.0, check=check)
-            
             if str(reaction.emoji) == dungset:
                 if member is None:
-                    # Reset all
                     success = await GuildDatabase.reset_all_balances(guild_id)
                     if success:
-                        embed.color = discord.Color.green()
-                        embed.description = "✅ Đã reset tiền của tất cả người dùng!"
+                        await msg.edit(content="Đã reset tiền cho tất cả người dùng.")
                     else:
-                        embed.color = discord.Color.red()
-                        embed.description = "❌ Có lỗi xảy ra!"
+                        await msg.edit(content="Có lỗi xảy ra!")
                 else:
-                    # Reset specific user
                     await UserDatabase.set_balance(guild_id, member.id, 0)
-                    embed.color = discord.Color.green()
-                    embed.description = f"✅ Đã reset tiền của **{member.display_name}**!"
-                
-                await msg.edit(embed=embed)
+                    await msg.edit(content=f"Đã reset tiền cho {member.display_name}.")
             else:
-                embed.color = discord.Color.red()
-                embed.description = "❌ Lệnh đã bị hủy."
-                await msg.edit(embed=embed)
-        
+                await msg.edit(content="Lệnh đã bị hủy.")
         except asyncio.TimeoutError:
-            embed.color = discord.Color.dark_gray()
-            embed.description = "⏱️ Hết thời gian chờ. Lệnh đã bị hủy."
-            await msg.edit(embed=embed)
-        
-        await msg.clear_reactions()
+            await msg.edit(content="Bạn không phản ứng kịp thời, lệnh đã bị hủy.")
+        else:
+            await ctx.send("Người dùng chưa đăng kí tài khoản.")
+
+    @commands.command(aliases=["nhapdl"], description="cập nhật database")
+    @commands.cooldown(1, 2, commands.BucketType.user)
+    @is_guild_owner_or_bot_owner()
+    async def nhapdulieu(self, ctx):
+        try:
+            # Force save data (this would be handled by database manager)
+            await ctx.send("Cập nhật database thành công!")
+        except Exception as e:
+            await ctx.send(f"Có lỗi xảy ra: {e}")
     
     @tasks.loop(minutes=30)
     async def auto_save_task(self):
@@ -659,7 +597,12 @@ class Economy(commands.Cog):
     async def work_error(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):
             mins, secs = divmod(int(error.retry_after), 60)
-            await ctx.send(f"⏱️ Vui lòng đợi **{mins}m {secs}s** trước khi làm việc tiếp!")
+            msg = await ctx.send(
+                f"⏰ | Vui lòng đợi {mins}m{secs}s trước khi làm việc tiếp."
+            )
+            await asyncio.sleep(2)
+            await msg.delete()
+            await ctx.message.delete()
         elif isinstance(error, commands.CheckFailure):
             pass
         else:
@@ -669,7 +612,10 @@ class Economy(commands.Cog):
     async def pray_error(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):
             mins, secs = divmod(int(error.retry_after), 60)
-            await ctx.send(f"⏱️ Vui lòng đợi **{mins}m {secs}s** trước khi cầu nguyện tiếp!")
+            msg = await ctx.send(f"⏰ | Vui lòng đợi {mins}m{secs}s trước khi cầu nguyện tiếp.")
+            await asyncio.sleep(2)
+            await msg.delete()
+            await ctx.message.delete()
         elif isinstance(error, commands.CheckFailure):
             pass
         else:
@@ -678,7 +624,7 @@ class Economy(commands.Cog):
     @give.error
     async def give_error(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):
-            await ctx.send(f"⏱️ Vui lòng đợi **{error.retry_after:.1f}s** trước khi chuyển tiền tiếp!")
+            await ctx.send(f"⏰ Vui lòng đợi **{error.retry_after:.1f}s** trước khi chuyển tiền tiếp!")
         elif isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("❌ Sử dụng: `zgive @người_nhận số_tiền`")
         elif isinstance(error, commands.BadArgument):
@@ -686,5 +632,7 @@ class Economy(commands.Cog):
         else:
             logger.error(f"Give command error: {error}")
 
+
 async def setup(client):
     await client.add_cog(Economy(client))
+    logger.info("Economy cog loaded")

@@ -19,6 +19,12 @@ wel_2 = '<:wel_2:1358235933442441276>'
 wel_3 = '<a:wel_3:1358235939972841654>'
 wel_4 = '<a:phaohoahong:1358024352318357574>'
 wel_5 = '<:wel_5:1358235947547885738>'
+button33 = '<a:button33:1412534340285370489>'
+button58 = '<a:button58:1412534176888000622>'
+hearts = '<:hearts:1414235687989018695>'
+button45 = '<a:button45:1412534253044105376>'
+pc = '<a:pc:1414238570041970802>'
+
 
 class WelcomeView(discord.ui.View):
     def __init__(self, member: discord.Member, enable_buttons=True, timeout: float = 600.0):
@@ -93,12 +99,49 @@ class Welcome(commands.Cog):
             return
 
         channel = self.client.get_channel(993153068378116127)
-        await asyncio.sleep(2)
+        # tạo embed
+        embed = discord.Embed(
+            description=(
+                f"# ㅤㅤ{button33} 𝐇𝐆𝐓𝐓 𝐗𝐢𝐧 𝐂𝐡𝐚̀𝐨 {button33}\nㅤ\n"
+                f"{button58} Để có một trải nghiệm tốt nhất tại sv, bạn vui lòng làm theo các bước sau để bật **hiện tất cả các kênh** nha\n\n"
+                f"{pc} **Trên máy tính (PC)**\n"
+                "- B1 :  Chuột phải vào tên sv 𝙝𝙖̣𝙩 𝙜𝙞𝙤̂́𝙣𝙜 𝙩𝙖̂𝙢 𝙩𝙝𝙖̂̀𝙣 ở trên cùng màn hình\n"
+                "- B2 : Tick vào ô **hiện tất cả các kênh**\n\n\n"
+                f"{hearts} **Trên điện thoại**\n"
+                "- B1 : Bấm vào tên sv 𝙝𝙖̣𝙩 𝙜𝙞𝙤̂́𝙣𝙜 𝙩𝙖̂𝙢 𝙩𝙝𝙖̂̀𝙣 ở trên cùng màn hình\n"
+                "- B2 : Kéo xuống và chọn mục **hiện tất cả các kênh**\n"
+                "\n"
+            ),
+            color=discord.Color.from_rgb(245, 252, 255)
+        )
+        embed.set_image(url="https://cdn.discordapp.com/attachments/1053799649938505889/1412703034764558356/image.png")
+
+        # Tạo button link đến kênh 🗨️│nói-khùm-nói-điên
+        channel = discord.utils.get(member.guild.text_channels, name="🗨️│nói-khùm-nói-điên")
+        view = None
+        if channel:
+            button = discord.ui.Button(
+                label=f"Bấm vào đây ",
+                style=discord.ButtonStyle.link,
+                url=f"https://discord.com/channels/{member.guild.id}/{channel.id}"
+            )
+            view = discord.ui.View()
+            view.add_item(button)
+
+        # thử gửi DM
+        try:
+            await member.send(embed=embed, view=view)
+        except discord.Forbidden:
+            print(f"[!] Không thể nhắn tin cho {member} (chặn DM).")
+            return
+
+        await asyncio.sleep(1)
         # await channel.send(f"# **{traitim} Hé lô {member.mention} nha**")
         view = WelcomeView(member=member)  # Truyền member vào
         message = await channel.send(content= f"# **{traitim} Hé lô {member.mention} nha**", view=view)
         view.message = message
         await view.wait()
+
 
     # @commands.Cog.listener()
     # async def on_member_join(self, member):
